@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Session logs (local only)
+CHAT_LOG.md
+**/CHAT_LOG.md

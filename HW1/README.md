@@ -1,167 +1,117 @@
-# Boolean Satisfiability (SAT) via Truth Table
+# HW1：計算 2^n 的四種方法與效率比較
 
-Gemini Conversation Link : https://share.gemini.google/0Z7jfGu4ootg
+## 題目
 
-## Overview
+用四種不同的方法計算 2^n，寫主程式實際測試，比較哪個快、哪個慢、哪個跑不出來。測試用 `n = 100`。
 
-`Boolean_Satisfiability.py` solves Boolean Satisfiability (SAT) problems using
-brute-force truth-table enumeration. Given a set of Boolean variables and a
-propositional formula, it evaluates the formula under **every possible truth
-assignment** (all 2^N combinations) and reports whether the formula is
-**SATISFIABLE** or **UNSATISFIABLE**.
+## 檔案說明
 
-This is the most straightforward and complete approach to SAT: it never misses
-a solution, but it scales exponentially (2^N rows for N variables), so it is
-only practical for small numbers of variables.
+| 檔案 | 內容 |
+|------|------|
+| `power2n.py` | 四種方法的函數實作 |
+| `main.py` | 主程式：正確性驗證 + 效率測試 |
+| `README.md` | 本說明文件 |
 
-## How It Works
+## 四種方法
 
-The core function is `solve_sat_truth_table(variables, formula_str)`.
-
-### 1. Input Validation
-
-Before building the table, the formula string is parsed with Python's `ast`
-module (`ast.parse(formula_str, mode="eval")`). The parse tree is walked to
-collect every `Name` node — i.e., every variable referenced in the formula.
-The function then checks:
-
-- **Syntax**: if the formula is not valid Python, it prints
-  `Error: invalid formula syntax: ...` and returns without printing a table.
-- **Variables**: if the formula references any name not present in
-  `variables`, it prints
-  `Error: formula references variable(s) not in [...]` and returns.
-
-This guarantees the evaluation step later can never crash with a `NameError`
-mid-table.
-
-### 2. Truth-Table Generation
-
-For `N` variables, `itertools.product([False, True], repeat=N)` generates all
-2^N combinations in a systematic order (each variable flips from `False` to
-`True` in right-to-left binary counting order). Each combination is zipped
-with the variable names into an assignment dictionary, e.g.:
+### 方法 1：直接用指數運算
 
 ```python
-{"A": False, "B": True, "C": False}
+def power2n(n):
+    return 2**n
 ```
 
-### 3. Formula Evaluation
+呼叫 Python 內建的大整數指數運算，一次完成。
 
-The formula string is evaluated under each assignment using:
+### 方法 2a：遞迴 `power2n(n-1)+power2n(n-1)`
 
 ```python
-bool(eval(formula_str, {}, assignment))
+def power2n_2a(n):
+    if n == 0:
+        return 1
+    return power2n_2a(n-1) + power2n_2a(n-1)
 ```
 
-`eval` is passed an **empty globals dict** and the assignment as locals, so
-the formula can only see the variables in the assignment — no builtins or
-imports are exposed. The result is coerced to `bool` and stored as the row's
-`Result` column.
+每一層遞迴都呼叫自己兩次，呼叫次數為 2^(n+1) - 1。
 
-### 4. Output
-
-The function prints, in order:
-
-1. The formula being tested.
-2. A header row with each variable plus a `Result` column, followed by a
-   separator line whose width matches the header.
-3. One row per assignment (` T ` / ` F ` per variable and for the result).
-4. A summary line: `SATISFIABLE (N solution(s) found)` or `UNSATISFIABLE`.
-5. If satisfiable, each satisfying assignment is listed as
-   `A=False, B=True, ...`.
-
-## Function Signature
+### 方法 2b：遞迴 `2*power2n(n-1)`
 
 ```python
-solve_sat_truth_table(variables, formula_str)
+def power2n_2b(n):
+    if n == 0:
+        return 1
+    return 2 * power2n_2b(n-1)
 ```
 
-| Parameter     | Type      | Description                                            |
-|---------------|-----------|--------------------------------------------------------|
-| `variables`   | `list`    | Variable names, e.g. `["A", "B", "C"]`                 |
-| `formula_str` | `str`     | Python boolean expression, e.g. `"(A or B) and (not A or C)"` |
+每一層只呼叫自己一次，共 n+1 次呼叫。
 
-Returns `None`; all results are printed to stdout.
+### 方法 3：遞迴 + 查表（memoization）
 
-## Formula Syntax
+```python
+_table = {}
 
-The formula is a plain Python boolean expression using the listed variable
-names plus the standard operators:
-
-| Operator      | Python syntax |
-|---------------|---------------|
-| AND           | `and`         |
-| OR            | `or`          |
-| NOT           | `not`         |
-
-Examples:
-
-- `"(A or B) and (not A or C) and (not B or not C)"`
-- `"A and not A"`
-- `"A or B or C"`
-
-## Example Output
-
-```
-Formula: (A or B) and (not A or C) and (not B or not C)
-
- A  |  B  |  C  | Result
-------------------------
- F  |  F  |  F  |   F
- F  |  F  |  T  |   F
- F  |  T  |  F  |   T
- F  |  T  |  T  |   F
- T  |  F  |  F  |   F
- T  |  F  |  T  |   T
- T  |  T  |  F  |   F
- T  |  T  |  T  |   F
-------------------------
-Status: SATISFIABLE (2 solution(s) found)
-
-  Solution 1: A=False, B=True, C=False
-  Solution 2: A=True, B=False, C=True
+def power2n_3(n):
+    if n in _table:
+        return _table[n]
+    if n == 0:
+        _table[0] = 1
+        return 1
+    _table[n] = power2n_3(n-1) + power2n_3(n-1)
+    return _table[n]
 ```
 
-## Running the Code
+結構同方法 2a，但已算過的值存進 `_table`，第二次呼叫直接查表，不再重複計算。
+
+## 時間複雜度
+
+| 方法 | 呼叫次數 | 時間複雜度 |
+|------|----------|------------|
+| 方法 1（2**n） | 1 | O(1)（指數運算，含大整數乘法的常數成本） |
+| 方法 2a（遞迴兩次相加） | 2^(n+1) - 1 | O(2^n) |
+| 方法 2b（遞迴乘 2） | n + 1 | O(n) |
+| 方法 3（遞迴 + 查表） | 2n + 1 | O(n) |
+
+## 實測結果（n = 100，Python 3.12.3 / Linux，各測 5 次取最快）
+
+### n = 100：哪些方法跑得出來？
+
+| 方法 | 耗時 | 備註 |
+|------|------|------|
+| 方法 1（2**n） | 約 0.18 µs | 最快，瞬間完成 |
+| 方法 2b（2*遞迴） | 約 3.5 µs | 101 次遞迴呼叫，很快 |
+| 方法 3（遞迴 + 查表） | 約 11 µs | 比 2b 稍慢（查字典有額外成本） |
+| 方法 2a（遞迴兩次相加） | **出不來** | 需 2,535,301,200,456,458,802,993,406,410,751 次呼叫，等超過 10 秒仍無結果，被強制終止 |
+
+n=100 時 2^100 = 1267650600228229401496703205376（31 位數）。
+
+### 方法 2a 的指數成長（實測）
+
+| n | 呼叫次數 2^(n+1)-1 | 耗時 |
+|---|--------------------|------|
+| 10 | 2,047 | 約 0.00005 秒 |
+| 15 | 65,535 | 約 0.002 秒 |
+| 20 | 2,097,151 | 約 0.05 秒 |
+| 25 | 67,108,863 | 約 1.7~1.8 秒 |
+| 100 | 2^101 - 1 | 約 2^75 倍於 n=25 → 永遠等不到 |
+
+n 每加 1，呼叫次數（與耗時）就加倍，n=100 完全不可行。
+
+## 執行方式
 
 ```bash
-python3 Boolean_Satisfiability.py
+cd HW1
+python3 main.py
 ```
 
-This runs two built-in demonstrations:
+輸出內容依序為：
 
-1. **Test Case 1** — `(A or B) and (not A or C) and (not B or not C)`:
-   satisfiable with 2 solutions.
-2. **Test Case 2** — `A and not A`: a contradiction, reported UNSATISFIABLE.
+1. 正確性驗證：n = 0 ~ 20 四個函數都與 `2**n` 相等。
+2. n = 100 效率測試：方法 1、2b、3 的耗時。
+3. 方法 2a 的成長趨勢：n = 10 / 15 / 20 / 25 的耗時。
+4. 方法 2a 挑戰 n = 100：超過 10 秒未完成即宣告「跑不出來」（以子行程 timeout 保護主程式不會卡死）。
 
-The function can also be imported and called directly:
+## 結論
 
-```python
-from Boolean_Satisfiability import solve_sat_truth_table
-solve_sat_truth_table(["A", "B"], "(A or B) and (not A or not B)")
-```
-
-## Behavior and Edge Cases
-
-| Case                                     | Behavior                                       |
-|------------------------------------------|------------------------------------------------|
-| Satisfiable formula                      | Prints table + count + all solutions           |
-| Unsatisfiable formula (contradiction)    | Prints table + `UNSATISFIABLE`                 |
-| Tautology (e.g. `A or not A`)            | Every row is ` T `; all assignments listed     |
-| Formula references undeclared variable   | Error message printed, no table                |
-| Invalid Python syntax in formula         | Error message printed, no table                |
-| Empty `variables` list with `"True"`     | Single row (2^0 = 1), SATISFIABLE              |
-| Lowercase names (e.g. `["a"]`, `"a"`)    | Works; variable names are case-sensitive       |
-
-## Complexity
-
-- **Time**: O(2^N) evaluations, where N is the number of variables.
-- **Space**: O(2^N) in the worst case (all assignments satisfying, e.g. a
-  tautology), since every solution is stored in `satisfying_assignments`.
-
-## Limitations
-
-- Exponential runtime makes the function impractical beyond roughly 20
-  variables (2^20 = ~1 million rows).
-- Formulas must be valid Python expressions restricted to the provided
-  variable names; only `and`, `or`, and `not` are meaningful for SAT.
+- **方法 1 最快**：呼叫內建 `2**n`，O(1) 瞬間完成。
+- **方法 2b、方法 3 都是 O(n)**：n=100 毫無壓力；2b 略快於查表版（省掉字典查詢的開銷），查表版在小 n 重複查詢時才有優勢。
+- **方法 2a 是 O(2^n)**：呼叫次數呈指數爆炸，n=100 需要約 2.5 × 10^30 次呼叫，**跑不出來**。
