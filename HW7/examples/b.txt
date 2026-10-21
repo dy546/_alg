@@ -1,0 +1,18 @@
+def greet(name):
+    message = "Hi, " + name + "!"
+    print(message)
+    return message
+
+def farewell(name):
+    print("Goodbye, " + name + "!")
+
+
+def main():
+    names = ["Alice", "Bob", "Charlie", "Dana"]
+    for name in names:
+        greet(name)
+    print("All done.")
+
+
+if __name__ == "__main__":
+    main()
